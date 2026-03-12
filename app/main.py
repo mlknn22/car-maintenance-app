@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from app.routes import cars
+from app.db.database import engine, Base
+from app.models import car
 
 app = FastAPI(
     title="Car Maintenance API"
@@ -10,3 +12,4 @@ async def root():
     return {"message": "Car Maintenance App"}
 
 app.include_router(cars.router)
+Base.metadata.create_all(bind=engine)
