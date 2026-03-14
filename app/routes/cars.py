@@ -12,20 +12,20 @@ from app.crud.car import (
 )
 
 
-router = APIRouter()
+router = APIRouter(prefix = "/cars", tags = ["Cars"])
 
 
-@router.post("/cars", response_model=CarResponse)
+@router.post("/", response_model=CarResponse)
 async def create_car_endpoint(car: CarCreate, db: Session = Depends(get_db)):
     return create_car(db, car)
 
 
-@router.get("/cars", response_model=list[CarResponse])
+@router.get("/", response_model=list[CarResponse])
 async def get_cars_endpoint(db: Session = Depends(get_db)):
     return get_cars(db)
 
 
-@router.get("/cars/{car_id}", response_model=CarResponse)
+@router.get("/{car_id}", response_model=CarResponse)
 async def get_car_endpoint(car_id: int, db: Session = Depends(get_db)):
     car = get_car_by_id(db, car_id)
 
@@ -35,7 +35,7 @@ async def get_car_endpoint(car_id: int, db: Session = Depends(get_db)):
     return car
 
 
-@router.put("/cars/{car_id}", response_model=CarResponse)
+@router.put("/{car_id}", response_model=CarResponse)
 async def update_car_endpoint(
     car_id: int,
     car: CarCreate,
@@ -50,7 +50,7 @@ async def update_car_endpoint(
     return updated_car
 
 
-@router.delete("/cars/{car_id}")
+@router.delete("/{car_id}")
 async def delete_car_endpoint(car_id: int, db: Session = Depends(get_db)):
 
     deleted_car = delete_car(db, car_id)

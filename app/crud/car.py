@@ -23,7 +23,8 @@ def get_cars(db: Session):
     return db.query(Car).all()
 
 def get_car_by_id(db: Session, car_id: int):
-    db.query(Car).filter(Car.id == car_id).first()
+    return db.query(Car).filter(Car.id == car_id).first()
+
 
 def update_car(db: Session, car_id: int, car_data: CarCreate):
     car =  db.query(Car).filter(Car.id == car_id).first()
