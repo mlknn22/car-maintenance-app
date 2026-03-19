@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status  # ✅ HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -13,7 +13,7 @@ from app.crud.telemetry_log import (
 from app.crud.device import get_device_by_id
 
 
-router = APIRouter(prefix="/telemetry-logs", tags=["Telemetry Logs"])  # ✅ дефис
+router = APIRouter(prefix="/telemetry-logs", tags=["Telemetry Logs"])
 
 
 @router.post("/", response_model=TelemetryLogResponse, status_code=status.HTTP_201_CREATED)
@@ -48,6 +48,17 @@ async def get_logs_by_device(
     return get_telemetry_logs_by_device(db, device_id, skip=skip, limit=limit)
 
 
+@router.get("/car/{car_id}/latest", response_model=TelemetryLogResponse)
+async def get_latest_log_by_car(car_id: int, db: Session = Depends(get_db)):
+    log = get_latest_telemetry_by_car(db, car_id)
+    if not log:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No telemetry data found for car {car_id}"
+        )
+    return log
+
+
 @router.get("/car/{car_id}", response_model=list[TelemetryLogResponse])
 async def get_logs_by_car(
     car_id: int,
@@ -58,12 +69,3 @@ async def get_logs_by_car(
     return get_telemetry_logs_by_car(db, car_id, skip=skip, limit=limit)
 
 
-@router.get("/car/{car_id}/latest", response_model=TelemetryLogResponse)
-async def get_latest_log_by_car(car_id: int, db: Session = Depends(get_db)):
-    log = get_latest_telemetry_by_car(db, car_id)
-    if not log:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No telemetry data found for car {car_id}"
-        )
-    return log
