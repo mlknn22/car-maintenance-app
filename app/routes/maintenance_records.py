@@ -16,7 +16,7 @@ from app.crud.maintenance_record import (
 from app.crud.car import get_car_by_id
 
 
-router = APIRouter(prefix = "/maintenance_records", tags = ["Maintenance Records"])
+router = APIRouter(prefix = "/maintenance-records", tags = ["Maintenance Records"])
 
 
 @router.post("/", response_model=MaintenanceRecordResponse, status_code=status.HTTP_201_CREATED)
@@ -55,8 +55,7 @@ async def get_record(
 ):
     record = get_maintenance_record_by_id(db, record_id)
 
-    # Паттерн "404 если не найдено" будет повторяться везде.
-    # Запомни его — это стандарт REST API.
+
     if not record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
