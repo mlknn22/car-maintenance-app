@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.schemas.telemetry_log import TelemetryLogResponse, TelemetryLogCreate
 from app.db.session import get_db
@@ -26,7 +26,7 @@ async def create_log(log: TelemetryLogCreate, db: Session = Depends(get_db)):
         )
 
 
-    device.last_seen = datetime.utcnow()
+    device.last_seen = datetime.now(timezone.utc)
     db.commit()
 
     return create_telemetry_log(db, log)
