@@ -28,3 +28,5 @@ htmlcov/
 *.sqlite3
 
 test_obd2.py
+
+CLAUDE.md
