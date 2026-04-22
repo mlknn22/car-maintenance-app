@@ -16,4 +16,3 @@ app.include_router(telemetry_logs.router)
 app.include_router(alerts.router)
 
 
-Base.metadata.create_all(bind=engine)
