@@ -10,5 +10,5 @@ class Device(Base):
     car_id = Column(Integer, ForeignKey("cars.id"), nullable=False, index=True)
     device_name = Column(String, nullable=False)
     connected = Column(Boolean, default=True)
-    last_seen = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, server_default=func.now())
+    last_seen = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -12,4 +12,4 @@ class Alert(Base):
     message = Column(String, nullable=False)
     severity = Column(String, nullable=False)
     is_read = Column(Boolean, default=False, nullable=False)
-    timestamp = Column(DateTime, server_default=func.now(), index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)

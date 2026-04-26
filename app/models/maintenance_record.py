@@ -15,4 +15,4 @@ class MaintenanceRecord(Base):
     cost = Column(Float, nullable=False)
     mileage_at_service = Column(Integer, nullable=False)
     notes = Column(String, nullable=True)
-    created_at = Column(DateTime, server_default=func.now()) #сервер сам ставит время
+    created_at = Column(DateTime(timezone=True), server_default=func.now()) #сервер сам ставит время
