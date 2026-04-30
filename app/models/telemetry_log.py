@@ -8,7 +8,7 @@ class TelemetryLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id"), nullable=False, index=True)
-    timestamp = Column(DateTime, server_default=func.now(), index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
     coolant_temp = Column(Float, nullable=True)

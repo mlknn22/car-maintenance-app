@@ -10,7 +10,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from app.db.database import Base
-from app.models import car, device, maintenance_record, telemetry_log, alert
+from app.models import car, device, maintenance_record, telemetry_log, alert, user
 from app.core.config import settings
 
 
