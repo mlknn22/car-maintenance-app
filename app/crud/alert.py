@@ -1,70 +1,72 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import Alert
 from app.schemas.alert import AlertCreate, AlertUpdate
 
 
-def create_alert(db: Session, alert: AlertCreate) -> Alert:
+async def create_alert(db: AsyncSession, alert: AlertCreate) -> Alert:
     db_alert = Alert(**alert.model_dump())
     db.add(db_alert)
-    db.commit()
-    db.refresh(db_alert)
+    await db.commit()
+    await db.refresh(db_alert)
     return db_alert
 
 
-def get_alerts_by_car(
-    db: Session,
+async def get_alerts_by_car(
+    db: AsyncSession,
     car_id: int,
     skip: int = 0,
     limit: int = 100,
-    unread_only: bool = False
+    unread_only: bool = False,
 ) -> list[Alert]:
-    query = (
-        db.query(Alert)
-        .filter(Alert.car_id == car_id)
+    stmt = (
+        select(Alert)
+        .where(Alert.car_id == car_id)
         .order_by(desc(Alert.timestamp))
     )
 
-
     if unread_only:
-        query = query.filter(Alert.is_read == False)
+        stmt = stmt.where(Alert.is_read == False)
 
-    return query.offset(skip).limit(limit).all()
-
-
-def get_alert_by_id(db: Session, alert_id: int) -> Alert | None:
-    return db.query(Alert).filter(Alert.id == alert_id).first()
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    return result.scalars().all()
 
 
-def mark_as_read(db: Session, alert_id: int) -> Alert | None:
-    db_alert = get_alert_by_id(db, alert_id)
+async def get_alert_by_id(db: AsyncSession, alert_id: int) -> Alert | None:
+    stmt = select(Alert).where(Alert.id == alert_id)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
 
+
+async def mark_as_read(db: AsyncSession, alert_id: int) -> Alert | None:
+    db_alert = await get_alert_by_id(db, alert_id)
     if not db_alert:
         return None
 
     db_alert.is_read = True
-    db.commit()
-    db.refresh(db_alert)
+    await db.commit()
+    await db.refresh(db_alert)
     return db_alert
 
 
-def mark_all_as_read(db: Session, car_id: int) -> int:
-    updated_count = (
-        db.query(Alert)
-        .filter(Alert.car_id == car_id, Alert.is_read == False)
-        .update({"is_read": True})
+async def mark_all_as_read(db: AsyncSession, car_id: int) -> int:
+    stmt = (
+        update(Alert)
+        .where(Alert.car_id == car_id, Alert.is_read == False)
+        .values(is_read=True)
     )
-    db.commit()
-    return updated_count
+    result = await db.execute(stmt)
+    await db.commit()
+    return result.rowcount
 
 
-def delete_alert(db: Session, alert_id: int) -> Alert | None:
-    db_alert = get_alert_by_id(db, alert_id)
-
+async def delete_alert(db: AsyncSession, alert_id: int) -> Alert | None:
+    db_alert = await get_alert_by_id(db, alert_id)
     if not db_alert:
         return None
 
-    db.delete(db_alert)
-    db.commit()
+    await db.delete(db_alert)
+    await db.commit()
     return db_alert
