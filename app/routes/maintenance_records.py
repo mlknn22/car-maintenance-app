@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.maintenance_record import (
     MaintenanceRecordCreate, MaintenanceRecordUpdate, MaintenanceRecordResponse
@@ -10,25 +10,25 @@ from app.crud.maintenance_record import (
     get_maintenance_records_by_car,
     get_maintenance_record_by_id,
     update_maintenance_record,
-    delete_maintenance_record
+    delete_maintenance_record,
 )
 
 from app.crud.car import get_car_by_id
 
 
-router = APIRouter(prefix = "/maintenance-records", tags = ["Maintenance Records"])
+router = APIRouter(prefix="/maintenance-records", tags=["Maintenance Records"])
 
 
 @router.post("/", response_model=MaintenanceRecordResponse, status_code=status.HTTP_201_CREATED)
-async def create_record(record: MaintenanceRecordCreate, db: Session = Depends(get_db)):
-    car = get_car_by_id(db, record.car_id)
+async def create_record(record: MaintenanceRecordCreate, db: AsyncSession = Depends(get_db)):
+    car = await get_car_by_id(db, record.car_id)
     if not car:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Car with id {record.car_id} not found"
         )
 
-    return create_maintenance_record(db, record)
+    return await create_maintenance_record(db, record)
 
 
 @router.get("/", response_model=list[MaintenanceRecordResponse])
@@ -36,25 +36,24 @@ async def get_records(
         car_id: int,
         skip: int = 0,
         limit: int = 100,
-        db: Session = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
 ):
-    car = get_car_by_id(db, car_id)
+    car = await get_car_by_id(db, car_id)
     if not car:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Car with id {car_id} not found"
         )
 
-    return get_maintenance_records_by_car(db, car_id, skip=skip, limit=limit)
+    return await get_maintenance_records_by_car(db, car_id, skip=skip, limit=limit)
 
 
 @router.get("/{record_id}", response_model=MaintenanceRecordResponse)
 async def get_record(
         record_id: int,
-        db: Session = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
 ):
-    record = get_maintenance_record_by_id(db, record_id)
-
+    record = await get_maintenance_record_by_id(db, record_id)
 
     if not record:
         raise HTTPException(
@@ -69,9 +68,9 @@ async def get_record(
 async def update_record(
         record_id: int,
         record_data: MaintenanceRecordUpdate,
-        db: Session = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
 ):
-    updated = update_maintenance_record(db, record_id, record_data)
+    updated = await update_maintenance_record(db, record_id, record_data)
 
     if not updated:
         raise HTTPException(
@@ -85,9 +84,9 @@ async def update_record(
 @router.delete("/{record_id}", status_code=status.HTTP_200_OK)
 async def delete_record(
         record_id: int,
-        db: Session = Depends(get_db)
+        db: AsyncSession = Depends(get_db),
 ):
-    deleted = delete_maintenance_record(db, record_id)
+    deleted = await delete_maintenance_record(db, record_id)
 
     if not deleted:
         raise HTTPException(
@@ -96,4 +95,3 @@ async def delete_record(
         )
 
     return {"message": f"Maintenance record {record_id} deleted successfully"}
-

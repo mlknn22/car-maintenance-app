@@ -1,55 +1,49 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.car import Car
-from app.schemas.car import CarCreate
+from app.schemas.car import CarCreate, CarUpdate
 
 
-def create_car(db: Session, car: CarCreate):
-
-    db_car = Car(
-        brand=car.brand,
-        model=car.model,
-        year=car.year,
-        mileage=car.mileage
-    )
-
+async def create_car(db: AsyncSession, car: CarCreate):
+    db_car = Car(**car.model_dump())
     db.add(db_car)
-    db.commit()
-    db.refresh(db_car)
-
+    await db.commit()
+    await db.refresh(db_car)
     return db_car
 
-def get_cars(db: Session):
 
-    return db.query(Car).all()
+async def get_cars(db: AsyncSession):
+    stmt = select(Car)
+    result = await db.execute(stmt)
+    return result.scalars().all()
 
-def get_car_by_id(db: Session, car_id: int):
-    return db.query(Car).filter(Car.id == car_id).first()
+
+async def get_car_by_id(db: AsyncSession, car_id: int):
+    stmt = select(Car).where(Car.id == car_id)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
 
 
-def update_car(db: Session, car_id: int, car_data: CarCreate):
-    car =  db.query(Car).filter(Car.id == car_id).first()
-
+async def update_car(db: AsyncSession, car_id: int, car_data: CarUpdate):
+    car = await get_car_by_id(db, car_id)
     if not car:
         return None
-    
-    car.brand = car_data.brand
-    car.model = car_data.model
-    car.mileage = car_data.mileage
-    car.year = car_data.year
 
-    db.commit()
-    db.refresh(car)
+    update_data = car_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(car, field, value)
 
+    await db.commit()
+    await db.refresh(car)
     return car
 
-def delete_car(db: Session, car_id: int):
-    car =  db.query(Car).filter(Car.id == car_id).first()
 
+async def delete_car(db: AsyncSession, car_id: int):
+    car = await get_car_by_id(db, car_id)
     if not car:
         return None
-    
-    db.delete(car)
-    db.commit()
 
+    await db.delete(car)
+    await db.commit()
     return car
-
