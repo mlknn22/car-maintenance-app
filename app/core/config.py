@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     # ALGORITHM: str = "HS256"
     # ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    @property
+    def database_url_sync(self) -> str:
+        return self.DATABASE_URL.replace("+asyncpg", "+psycopg2")
 
     model_config = SettingsConfigDict(
         env_file=".env",
