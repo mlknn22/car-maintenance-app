@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.device import DeviceCreate, DeviceUpdate, DeviceResponse
@@ -23,59 +23,72 @@ async def create_device_endpoint(device: DeviceCreate, db: AsyncSession = Depend
     if not car:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Car with id {device.car_id} not found"
+            detail=f"Car with id {device.car_id} not found",
         )
     return await create_device(db, device)
 
 
 @router.get("/", response_model=list[DeviceResponse])
-async def get_devices_endpoint(db: AsyncSession = Depends(get_db)):
-    return await get_devices(db)
+async def get_devices_endpoint(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+):
+    return await get_devices(db, skip=skip, limit=limit)
 
 
 @router.get("/car/{car_id}", response_model=list[DeviceResponse])
-async def get_devices_by_car_endpoint(car_id: int, db: AsyncSession = Depends(get_db)):
+async def get_devices_by_car_endpoint(
+    car_id: int = Path(..., gt=0),
+    db: AsyncSession = Depends(get_db),
+):
     car = await get_car_by_id(db, car_id)
     if not car:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Car with id {car_id} not found"
+            detail=f"Car with id {car_id} not found",
         )
     return await get_devices_by_car(db, car_id)
 
 
 @router.get("/{device_id}", response_model=DeviceResponse)
-async def get_device_endpoint(device_id: int, db: AsyncSession = Depends(get_db)):
+async def get_device_endpoint(
+    device_id: int = Path(..., gt=0),
+    db: AsyncSession = Depends(get_db),
+):
     device = await get_device_by_id(db, device_id)
     if not device:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Device with id {device_id} not found"
+            detail=f"Device with id {device_id} not found",
         )
     return device
 
 
 @router.patch("/{device_id}", response_model=DeviceResponse)
 async def update_device_endpoint(
-    device_id: int,
     device_data: DeviceUpdate,
+    device_id: int = Path(..., gt=0),
     db: AsyncSession = Depends(get_db),
 ):
     updated = await update_device(db, device_id, device_data)
     if not updated:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Device with id {device_id} not found"
+            detail=f"Device with id {device_id} not found",
         )
     return updated
 
 
 @router.delete("/{device_id}", status_code=status.HTTP_200_OK)
-async def delete_device_endpoint(device_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_device_endpoint(
+    device_id: int = Path(..., gt=0),
+    db: AsyncSession = Depends(get_db),
+):
     deleted = await delete_device(db, device_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Device with id {device_id} not found"
+            detail=f"Device with id {device_id} not found",
         )
     return {"message": f"Device {device_id} deleted successfully"}

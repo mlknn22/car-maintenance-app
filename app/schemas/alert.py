@@ -7,17 +7,11 @@ class AlertBase(BaseModel):
     car_id: int = Field(..., gt=0)
     type: str
     message: str
-
-
     severity: Literal["info", "warning", "critical"]
 
 
 class AlertCreate(AlertBase):
     pass
-
-
-class AlertUpdate(BaseModel):
-    is_read: bool
 
 
 class AlertResponse(AlertBase):
