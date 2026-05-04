@@ -2,7 +2,7 @@ from sqlalchemy import desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import Alert
-from app.schemas.alert import AlertCreate, AlertUpdate
+from app.schemas.alert import AlertCreate
 
 
 async def create_alert(db: AsyncSession, alert: AlertCreate) -> Alert:
@@ -56,6 +56,7 @@ async def mark_all_as_read(db: AsyncSession, car_id: int) -> int:
         update(Alert)
         .where(Alert.car_id == car_id, Alert.is_read == False)
         .values(is_read=True)
+        .execution_options(synchronize_session=False)
     )
     result = await db.execute(stmt)
     await db.commit()

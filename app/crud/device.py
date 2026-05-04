@@ -13,8 +13,8 @@ async def create_device(db: AsyncSession, device: DeviceCreate) -> Device:
     return db_device
 
 
-async def get_devices(db: AsyncSession) -> list[Device]:
-    stmt = select(Device)
+async def get_devices(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[Device]:
+    stmt = select(Device).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return result.scalars().all()
 
