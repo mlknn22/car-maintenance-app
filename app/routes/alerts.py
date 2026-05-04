@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.alert import AlertCreate, AlertUpdate, AlertResponse
+from app.schemas.alert import AlertCreate, AlertResponse
 from app.db.session import get_db
 from app.crud.alert import (
     create_alert,
@@ -23,16 +23,16 @@ async def create_alert_endpoint(alert: AlertCreate, db: AsyncSession = Depends(g
     if not car:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Car with id {alert.car_id} not found"
+            detail=f"Car with id {alert.car_id} not found",
         )
     return await create_alert(db, alert)
 
 
 @router.get("/", response_model=list[AlertResponse])
 async def get_alerts(
-    car_id: int,
-    skip: int = 0,
-    limit: int = 100,
+    car_id: int = Query(..., gt=0),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     unread_only: bool = False,
     db: AsyncSession = Depends(get_db),
 ):
@@ -40,40 +40,49 @@ async def get_alerts(
     if not car:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Car with id {car_id} not found"
+            detail=f"Car with id {car_id} not found",
         )
     return await get_alerts_by_car(db, car_id, skip=skip, limit=limit, unread_only=unread_only)
 
 
 @router.patch("/{alert_id}/read", response_model=AlertResponse)
-async def mark_alert_as_read(alert_id: int, db: AsyncSession = Depends(get_db)):
+async def mark_alert_as_read(
+    alert_id: int = Path(..., gt=0),
+    db: AsyncSession = Depends(get_db),
+):
     alert = await mark_as_read(db, alert_id)
     if not alert:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Alert with id {alert_id} not found"
+            detail=f"Alert with id {alert_id} not found",
         )
     return alert
 
 
 @router.post("/read-all", status_code=status.HTTP_200_OK)
-async def mark_all_alerts_as_read(car_id: int, db: AsyncSession = Depends(get_db)):
+async def mark_all_alerts_as_read(
+    car_id: int = Query(..., gt=0),
+    db: AsyncSession = Depends(get_db),
+):
     car = await get_car_by_id(db, car_id)
     if not car:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Car with id {car_id} not found"
+            detail=f"Car with id {car_id} not found",
         )
     count = await mark_all_as_read(db, car_id)
     return {"message": f"Marked {count} alerts as read"}
 
 
 @router.delete("/{alert_id}", status_code=status.HTTP_200_OK)
-async def delete_alert_endpoint(alert_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_alert_endpoint(
+    alert_id: int = Path(..., gt=0),
+    db: AsyncSession = Depends(get_db),
+):
     deleted = await delete_alert(db, alert_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Alert with id {alert_id} not found"
+            detail=f"Alert with id {alert_id} not found",
         )
     return {"message": f"Alert {alert_id} deleted successfully"}
