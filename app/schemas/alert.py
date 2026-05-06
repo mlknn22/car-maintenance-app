@@ -4,6 +4,8 @@ from typing import Literal
 
 
 class AlertBase(BaseModel):
+    model_config = {"extra": "forbid"}
+
     car_id: int = Field(..., gt=0)
     type: str
     message: str
@@ -19,4 +21,4 @@ class AlertResponse(AlertBase):
     is_read: bool
     timestamp: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "extra": "forbid"}
