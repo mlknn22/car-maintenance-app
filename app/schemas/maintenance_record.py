@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field
 from datetime import date, datetime
 
 class MaintenanceRecordBase(BaseModel):
+    model_config = {"extra": "forbid"}
+
     car_id: int = Field(..., gt=0)
     service_date: date
     work_type: str = Field(..., min_length = 2)
@@ -15,6 +17,8 @@ class MaintenanceRecordCreate(MaintenanceRecordBase):
 
 
 class MaintenanceRecordUpdate(BaseModel):
+    model_config = {"extra": "forbid"}
+
     service_date: date | None =  None
     work_type: str | None = Field(None, min_length = 2)
     cost: float | None = Field(None, ge=0)
@@ -26,7 +30,6 @@ class MaintenanceRecordResponse(MaintenanceRecordBase):
     id: int
     created_at: datetime
 
-
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "extra": "forbid"}
 
 
