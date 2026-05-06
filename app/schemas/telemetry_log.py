@@ -3,8 +3,9 @@ from datetime import datetime
 
 
 class TelemetryLogCreate(BaseModel):
-    device_id: int = Field(..., gt=0)
+    model_config = {"extra": "forbid"}
 
+    device_id: int = Field(..., gt=0)
 
     coolant_temp: float | None = Field(
         None,
@@ -32,4 +33,4 @@ class TelemetryLogResponse(TelemetryLogCreate):
     id: int
     timestamp: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "extra": "forbid"}
