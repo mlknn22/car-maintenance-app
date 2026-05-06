@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routes import cars, devices, maintenance_records, telemetry_logs, alerts
+from app.routes import auth, cars, devices, maintenance_records, telemetry_logs, alerts
 from app.models import car, device, maintenance_record, telemetry_log, alert, user
 
 app = FastAPI(title="Car Maintenance API")
@@ -10,6 +10,7 @@ async def root():
     return {"message": "Car Maintenance App"}
 
 
+app.include_router(auth.router)
 app.include_router(cars.router)
 app.include_router(devices.router)
 app.include_router(maintenance_records.router)
