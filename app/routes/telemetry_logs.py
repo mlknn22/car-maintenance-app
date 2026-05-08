@@ -7,14 +7,15 @@ from app.core.dependencies import get_current_user
 from app.crud.car import get_car_by_id
 from app.crud.device import get_device_by_id
 from app.crud.telemetry_log import (
-    create_telemetry_log,
     get_latest_telemetry_by_car,
     get_telemetry_logs_by_car,
     get_telemetry_logs_by_device,
 )
 from app.db.session import get_db
+from app.models.telemetry_log import TelemetryLog
 from app.models.user import User
 from app.schemas.telemetry_log import TelemetryLogCreate, TelemetryLogResponse
+from app.services.alert_service import check_thresholds, filter_recent_duplicates
 
 
 router = APIRouter(prefix="/telemetry-logs", tags=["Telemetry Logs"])
@@ -33,10 +34,18 @@ async def create_log(
             detail=f"Device with id {log.device_id} not found",
         )
 
+    db_log = TelemetryLog(**log.model_dump())
+    db.add(db_log)
     device.last_seen = datetime.now(timezone.utc)
-    await db.commit()
 
-    return await create_telemetry_log(db, log, user_id=current_user.id)
+    candidates = check_thresholds(db_log, car_id=device.car_id)
+    fresh = await filter_recent_duplicates(db, candidates)
+    if fresh:
+        db.add_all(fresh)
+
+    await db.commit()
+    await db.refresh(db_log)
+    return db_log
 
 
 @router.get("/", response_model=list[TelemetryLogResponse])
