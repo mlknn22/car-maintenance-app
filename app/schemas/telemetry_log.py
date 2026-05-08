@@ -28,6 +28,20 @@ class TelemetryLogCreate(BaseModel):
         description="Напряжение аккумулятора в вольтах"
     )
 
+    speed: float | None = Field(
+        None,
+        ge=0,
+        le=300,
+        description="Скорость автомобиля в км/ч"
+    )
+
+    engine_load: float | None = Field(
+        None,
+        ge=0,
+        le=100,
+        description="Расчётная нагрузка двигателя в процентах"
+    )
+
 
 class TelemetryLogResponse(TelemetryLogCreate):
     id: int
