@@ -19,5 +19,7 @@ class TelemetryLog(Base):
     coolant_temp = Column(Float, nullable=True)
     rpm = Column(Float, nullable=True)
     battery_voltage = Column(Float, nullable=True)
+    speed = Column(Float, nullable=True)
+    engine_load = Column(Float, nullable=True)
 
     device = relationship("Device", back_populates="telemetry_logs")
