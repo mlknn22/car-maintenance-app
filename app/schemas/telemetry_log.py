@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 
@@ -6,6 +6,16 @@ class TelemetryLogCreate(BaseModel):
     model_config = {"extra": "forbid"}
 
     device_id: int = Field(..., gt=0)
+
+    timestamp: datetime | None = Field(
+        None,
+        description=(
+            "Опциональная UTC-метка времени лога. "
+            "Если не задана — БД проставит server_default=now(). "
+            "Должна быть timezone-aware (наивный datetime отклоняется). "
+            "Используется симулятором для бэкфилла истории."
+        ),
+    )
 
     coolant_temp: float | None = Field(
         None,
@@ -41,6 +51,13 @@ class TelemetryLogCreate(BaseModel):
         le=100,
         description="Расчётная нагрузка двигателя в процентах"
     )
+
+    @field_validator("timestamp")
+    @classmethod
+    def _require_tz_aware(cls, v: datetime | None) -> datetime | None:
+        if v is not None and v.tzinfo is None:
+            raise ValueError("timestamp must be timezone-aware (include tz offset)")
+        return v
 
 
 class TelemetryLogResponse(TelemetryLogCreate):
