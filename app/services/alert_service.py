@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.thresholds import DEFAULT_THRESHOLDS, Thresholds
 from app.models.alert import Alert
 from app.models.telemetry_log import TelemetryLog
+
+
+SEVERITY_RANK = {"info": 0, "warning": 1, "critical": 2}
 
 
 def _engine_running(log: TelemetryLog, thresholds: Thresholds) -> bool | None:
@@ -105,6 +108,109 @@ def check_thresholds(
         ))
 
     return alerts
+
+
+def current_violation_types(
+    log: TelemetryLog,
+    thresholds: Thresholds = DEFAULT_THRESHOLDS,
+) -> dict[str, bool | None]:
+    """
+    Возвращает словарь {alert_type: violation_state} для каждого типа алерта,
+    который умеет производить check_thresholds.
+
+    Значения:
+      - True  — сейчас в нарушении (новый алерт уместен)
+      - False — сейчас в норме (active алерт этого типа можно резолвить)
+      - None  — недостаточно данных (active алерт трогать нельзя)
+    """
+    result: dict[str, bool | None] = {}
+
+    if log.coolant_temp is None:
+        result["coolant_high"] = None
+    else:
+        result["coolant_high"] = log.coolant_temp > thresholds.coolant_warn
+
+    running = _engine_running(log, thresholds)
+    if log.battery_voltage is None or running is None:
+        result["battery_low_running"] = None
+        result["battery_low_idle"] = None
+    elif running:
+        result["battery_low_running"] = log.battery_voltage < thresholds.battery_running_warn
+        result["battery_low_idle"] = False
+    else:
+        result["battery_low_running"] = False
+        result["battery_low_idle"] = log.battery_voltage < thresholds.battery_idle_warn
+
+    if log.rpm is None:
+        result["overrev"] = None
+    else:
+        result["overrev"] = log.rpm > thresholds.overrev_crit
+
+    if log.rpm is None or log.coolant_temp is None:
+        result["cold_revving"] = None
+    else:
+        result["cold_revving"] = (
+            log.rpm > thresholds.cold_rev_rpm
+            and log.coolant_temp < thresholds.cold_rev_coolant_max
+        )
+
+    return result
+
+
+async def resolve_recovered_alerts(
+    db: AsyncSession,
+    log: TelemetryLog,
+    car_id: int,
+    thresholds: Thresholds = DEFAULT_THRESHOLDS,
+) -> int:
+    violations = current_violation_types(log, thresholds)
+    recovered_types = [t for t, v in violations.items() if v is False]
+    if not recovered_types:
+        return 0
+
+    stmt = (
+        update(Alert)
+        .where(
+            Alert.car_id == car_id,
+            Alert.type.in_(recovered_types),
+            Alert.resolved_at.is_(None),
+        )
+        .values(resolved_at=datetime.now(timezone.utc))
+        .execution_options(synchronize_session=False)
+    )
+    result = await db.execute(stmt)
+    return result.rowcount
+
+
+async def merge_with_active_state(
+    db: AsyncSession,
+    candidates: list[Alert],
+) -> list[Alert]:
+    if not candidates:
+        return []
+
+    fresh: list[Alert] = []
+    for candidate in candidates:
+        stmt = (
+            select(Alert)
+            .where(
+                Alert.car_id == candidate.car_id,
+                Alert.type == candidate.type,
+                Alert.resolved_at.is_(None),
+            )
+            .limit(1)
+        )
+        active = (await db.execute(stmt)).scalar_one_or_none()
+
+        if active is None:
+            fresh.append(candidate)
+            continue
+
+        if SEVERITY_RANK[candidate.severity] > SEVERITY_RANK[active.severity]:
+            active.resolved_at = datetime.now(timezone.utc)
+            fresh.append(candidate)
+        # severity не повысилась → существующий active покрывает событие
+    return fresh
 
 
 async def filter_recent_duplicates(
