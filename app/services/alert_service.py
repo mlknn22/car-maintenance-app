@@ -20,8 +20,11 @@ def _engine_running(log: TelemetryLog, thresholds: Thresholds) -> bool | None:
 def check_thresholds(
     log: TelemetryLog,
     car_id: int,
+    now: datetime | None = None,
     thresholds: Thresholds = DEFAULT_THRESHOLDS,
 ) -> list[Alert]:
+    if now is None:
+        now = datetime.now(timezone.utc)
     alerts: list[Alert] = []
 
     if log.coolant_temp is not None:
@@ -31,6 +34,7 @@ def check_thresholds(
                 type="coolant_high",
                 severity="critical",
                 message=f"Критический перегрев двигателя: {log.coolant_temp:.1f} °C",
+                timestamp=now,
             ))
         elif log.coolant_temp > thresholds.coolant_warn:
             alerts.append(Alert(
@@ -38,6 +42,7 @@ def check_thresholds(
                 type="coolant_high",
                 severity="warning",
                 message=f"Высокая температура двигателя: {log.coolant_temp:.1f} °C",
+                timestamp=now,
             ))
 
     if log.battery_voltage is not None:
@@ -53,6 +58,7 @@ def check_thresholds(
                         f"двигателе: {log.battery_voltage:.2f} В "
                         f"(вероятна неисправность генератора)"
                     ),
+                    timestamp=now,
                 ))
             elif log.battery_voltage < thresholds.battery_running_warn:
                 alerts.append(Alert(
@@ -63,6 +69,7 @@ def check_thresholds(
                         f"Пониженное напряжение бортсети при работающем "
                         f"двигателе: {log.battery_voltage:.2f} В"
                     ),
+                    timestamp=now,
                 ))
         elif running is False:
             if log.battery_voltage < thresholds.battery_idle_crit:
@@ -74,6 +81,7 @@ def check_thresholds(
                         f"Критически низкое напряжение АКБ в покое: "
                         f"{log.battery_voltage:.2f} В (возможна глубокая разрядка)"
                     ),
+                    timestamp=now,
                 ))
             elif log.battery_voltage < thresholds.battery_idle_warn:
                 alerts.append(Alert(
@@ -81,6 +89,7 @@ def check_thresholds(
                     type="battery_low_idle",
                     severity="warning",
                     message=f"Пониженное напряжение АКБ в покое: {log.battery_voltage:.2f} В",
+                    timestamp=now,
                 ))
 
     if log.rpm is not None and log.rpm > thresholds.overrev_crit:
@@ -89,6 +98,7 @@ def check_thresholds(
             type="overrev",
             severity="critical",
             message=f"Превышение оборотов: {log.rpm:.0f} RPM",
+            timestamp=now,
         ))
 
     if (
@@ -105,6 +115,7 @@ def check_thresholds(
                 f"Высокие обороты на непрогретом двигателе: {log.rpm:.0f} RPM "
                 f"при температуре охлаждающей жидкости {log.coolant_temp:.1f} °C"
             ),
+            timestamp=now,
         ))
 
     return alerts
@@ -161,8 +172,11 @@ async def resolve_recovered_alerts(
     db: AsyncSession,
     log: TelemetryLog,
     car_id: int,
+    now: datetime | None = None,
     thresholds: Thresholds = DEFAULT_THRESHOLDS,
 ) -> int:
+    if now is None:
+        now = datetime.now(timezone.utc)
     violations = current_violation_types(log, thresholds)
     recovered_types = [t for t, v in violations.items() if v is False]
     if not recovered_types:
@@ -175,7 +189,7 @@ async def resolve_recovered_alerts(
             Alert.type.in_(recovered_types),
             Alert.resolved_at.is_(None),
         )
-        .values(resolved_at=datetime.now(timezone.utc))
+        .values(resolved_at=now)
         .execution_options(synchronize_session=False)
     )
     result = await db.execute(stmt)
@@ -185,9 +199,12 @@ async def resolve_recovered_alerts(
 async def merge_with_active_state(
     db: AsyncSession,
     candidates: list[Alert],
+    now: datetime | None = None,
 ) -> list[Alert]:
     if not candidates:
         return []
+    if now is None:
+        now = datetime.now(timezone.utc)
 
     fresh: list[Alert] = []
     for candidate in candidates:
@@ -207,7 +224,7 @@ async def merge_with_active_state(
             continue
 
         if SEVERITY_RANK[candidate.severity] > SEVERITY_RANK[active.severity]:
-            active.resolved_at = datetime.now(timezone.utc)
+            active.resolved_at = now
             fresh.append(candidate)
         # severity не повысилась → существующий active покрывает событие
     return fresh
