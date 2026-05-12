@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -210,32 +210,4 @@ async def merge_with_active_state(
             active.resolved_at = datetime.now(timezone.utc)
             fresh.append(candidate)
         # severity не повысилась → существующий active покрывает событие
-    return fresh
-
-
-async def filter_recent_duplicates(
-    db: AsyncSession,
-    candidates: list[Alert],
-    window_seconds: int = 60,
-) -> list[Alert]:
-    if not candidates:
-        return []
-
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=window_seconds)
-    fresh: list[Alert] = []
-    for alert in candidates:
-        stmt = (
-            select(Alert.id)
-            .where(
-                Alert.car_id == alert.car_id,
-                Alert.type == alert.type,
-                Alert.severity == alert.severity,
-                Alert.is_read == False,
-                Alert.timestamp >= cutoff,
-            )
-            .limit(1)
-        )
-        existing = (await db.execute(stmt)).scalar_one_or_none()
-        if existing is None:
-            fresh.append(alert)
     return fresh
