@@ -1,9 +1,13 @@
+from typing import Literal
+
 from sqlalchemy import desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import Alert
 from app.models.car import Car
 from app.schemas.alert import AlertCreate
+
+AlertStatus = Literal["active", "resolved", "all"]
 
 
 async def _user_owns_car(db: AsyncSession, car_id: int, user_id: int) -> bool:
@@ -33,6 +37,7 @@ async def get_alerts_by_car(
     skip: int = 0,
     limit: int = 100,
     unread_only: bool = False,
+    status: AlertStatus = "active",
 ) -> list[Alert]:
     stmt = (
         select(Alert)
@@ -42,6 +47,10 @@ async def get_alerts_by_car(
     )
     if unread_only:
         stmt = stmt.where(Alert.is_read == False)
+    if status == "active":
+        stmt = stmt.where(Alert.resolved_at.is_(None))
+    elif status == "resolved":
+        stmt = stmt.where(Alert.resolved_at.is_not(None))
     stmt = stmt.offset(skip).limit(limit)
 
     result = await db.execute(stmt)

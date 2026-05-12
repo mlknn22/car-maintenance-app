@@ -15,7 +15,11 @@ from app.db.session import get_db
 from app.models.telemetry_log import TelemetryLog
 from app.models.user import User
 from app.schemas.telemetry_log import TelemetryLogCreate, TelemetryLogResponse
-from app.services.alert_service import check_thresholds, filter_recent_duplicates
+from app.services.alert_service import (
+    check_thresholds,
+    merge_with_active_state,
+    resolve_recovered_alerts,
+)
 
 
 router = APIRouter(prefix="/telemetry-logs", tags=["Telemetry Logs"])
@@ -38,8 +42,9 @@ async def create_log(
     db.add(db_log)
     device.last_seen = datetime.now(timezone.utc)
 
+    await resolve_recovered_alerts(db, db_log, car_id=device.car_id)
     candidates = check_thresholds(db_log, car_id=device.car_id)
-    fresh = await filter_recent_duplicates(db, candidates)
+    fresh = await merge_with_active_state(db, candidates)
     if fresh:
         db.add_all(fresh)
 

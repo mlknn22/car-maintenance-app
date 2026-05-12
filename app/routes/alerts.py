@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,12 +40,13 @@ async def get_alerts(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     unread_only: bool = False,
+    alert_status: Literal["active", "resolved", "all"] = Query("active", alias="status"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     return await get_alerts_by_car(
         db, car_id, user_id=current_user.id,
-        skip=skip, limit=limit, unread_only=unread_only,
+        skip=skip, limit=limit, unread_only=unread_only, status=alert_status,
     )
 
 
