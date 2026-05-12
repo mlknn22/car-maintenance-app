@@ -20,5 +20,6 @@ class AlertResponse(AlertBase):
     id: int
     is_read: bool
     timestamp: datetime
+    resolved_at: datetime | None
 
     model_config = {"from_attributes": True, "extra": "forbid"}
