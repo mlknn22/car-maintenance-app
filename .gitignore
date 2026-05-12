@@ -30,5 +30,6 @@ htmlcov/
 test_obd2.py
 
 CLAUDE.md
+.claude
 
 theory.txt
