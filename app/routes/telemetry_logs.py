@@ -38,13 +38,18 @@ async def create_log(
             detail=f"Device with id {log.device_id} not found",
         )
 
-    db_log = TelemetryLog(**log.model_dump())
-    db.add(db_log)
-    device.last_seen = datetime.now(timezone.utc)
+    effective_ts = log.timestamp if log.timestamp is not None else datetime.now(timezone.utc)
 
-    await resolve_recovered_alerts(db, db_log, car_id=device.car_id)
-    candidates = check_thresholds(db_log, car_id=device.car_id)
-    fresh = await merge_with_active_state(db, candidates)
+    data = log.model_dump()
+    if data.get("timestamp") is None:
+        data.pop("timestamp", None)
+    db_log = TelemetryLog(**data)
+    db.add(db_log)
+    device.last_seen = effective_ts
+
+    await resolve_recovered_alerts(db, db_log, car_id=device.car_id, now=effective_ts)
+    candidates = check_thresholds(db_log, car_id=device.car_id, now=effective_ts)
+    fresh = await merge_with_active_state(db, candidates, now=effective_ts)
     if fresh:
         db.add_all(fresh)
 
