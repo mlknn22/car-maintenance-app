@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import settings
 from app.ml.predict import load_model
 from app.models import alert, car, device, maintenance_record, telemetry_log, user
 from app.routes import alerts, auth, cars, devices, maintenance_records, telemetry_logs
@@ -14,6 +16,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Car Maintenance API", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
