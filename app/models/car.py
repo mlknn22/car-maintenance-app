@@ -11,6 +11,12 @@ class Car(Base):
     model = Column(String, nullable=False)
     year = Column(Integer, nullable=False)
     mileage = Column(Integer, nullable=False)
+    body_type = Column(String, nullable=False, server_default="Car")
+    fuel_type = Column(String, nullable=False, server_default="Petrol")
+    transmission = Column(String, nullable=False, server_default="Automatic")
+    engine_size = Column(Integer, nullable=False, server_default="2000")
+    brake_condition = Column(String, nullable=False, server_default="Good")
+    owner_type = Column(String, nullable=False, server_default="First")
     user_id = Column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),

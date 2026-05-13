@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,8 +12,9 @@ from app.crud.car import (
     delete_car,
 )
 from app.db.session import get_db
+from app.ml.predict import get_model, predict_risk
 from app.models.user import User
-from app.schemas.car import CarCreate, CarUpdate, CarResponse
+from app.schemas.car import CarCreate, CarUpdate, CarResponse, RiskScoreResponse
 
 
 router = APIRouter(prefix="/cars", tags=["Cars"])
@@ -71,3 +74,25 @@ async def delete_car_endpoint(
     if not deleted_car:
         raise HTTPException(status_code=404, detail="Car not found")
     return {"message": "Car deleted successfully"}
+
+
+@router.get("/{car_id}/risk-score", response_model=RiskScoreResponse)
+async def get_risk_score_endpoint(
+    car_id: int = Path(..., gt=0),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    car = await get_car_by_id(db, car_id, user_id=current_user.id)
+    if not car:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    risk_score = await predict_risk(car, db)
+    car.risk_score = risk_score
+    await db.commit()
+
+    return RiskScoreResponse(
+        car_id=car.id,
+        risk_score=risk_score,
+        model_name=get_model()["model_name"],
+        computed_at=datetime.now(timezone.utc),
+    )

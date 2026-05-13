@@ -33,3 +33,6 @@ CLAUDE.md
 .claude
 
 theory.txt
+
+# VKR text (kept locally, not versioned in this repo)
+*.docx
