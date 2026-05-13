@@ -9,29 +9,63 @@ from app.crud.device import (
     get_device_by_id,
     get_devices,
     get_devices_by_car,
+    regenerate_device_token,
     update_device,
 )
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.device import DeviceCreate, DeviceResponse, DeviceUpdate
+from app.schemas.device import (
+    DeviceCreate,
+    DeviceCreatedResponse,
+    DeviceResponse,
+    DeviceTokenResponse,
+    DeviceUpdate,
+)
 
 
 router = APIRouter(prefix="/devices", tags=["Devices"])
 
 
-@router.post("/", response_model=DeviceResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=DeviceCreatedResponse, status_code=status.HTTP_201_CREATED)
 async def create_device_endpoint(
     device: DeviceCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    db_device = await create_device(db, device, user_id=current_user.id)
-    if db_device is None:
+    result = await create_device(db, device, user_id=current_user.id)
+    if result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Car with id {device.car_id} not found",
         )
-    return db_device
+    db_device, plaintext_token = result
+    return DeviceCreatedResponse(
+        id=db_device.id,
+        car_id=db_device.car_id,
+        device_name=db_device.device_name,
+        connected=db_device.connected,
+        last_seen=db_device.last_seen,
+        created_at=db_device.created_at,
+        api_token=plaintext_token,
+    )
+
+
+@router.post(
+    "/{device_id}/regenerate-token",
+    response_model=DeviceTokenResponse,
+)
+async def regenerate_token_endpoint(
+    device_id: int = Path(..., gt=0),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    plaintext = await regenerate_device_token(db, device_id, user_id=current_user.id)
+    if plaintext is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Device with id {device_id} not found",
+        )
+    return DeviceTokenResponse(api_token=plaintext)
 
 
 @router.get("/", response_model=list[DeviceResponse])

@@ -27,3 +27,19 @@ class DeviceResponse(DeviceBase):
     created_at: datetime
 
     model_config = {"from_attributes": True, "extra": "forbid"}
+
+
+class DeviceCreatedResponse(DeviceResponse):
+    """Ответ при создании устройства. Содержит plaintext-токен, видимый один раз."""
+
+    api_token: str
+
+    model_config = {"from_attributes": True, "extra": "forbid"}
+
+
+class DeviceTokenResponse(BaseModel):
+    """Ответ при регенерации API-токена устройства."""
+
+    api_token: str
+
+    model_config = {"extra": "forbid"}

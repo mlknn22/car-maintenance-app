@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import generate_device_token
 from app.models.car import Car
 from app.models.device import Device
 from app.schemas.device import DeviceCreate, DeviceUpdate
@@ -15,15 +16,17 @@ async def create_device(
     db: AsyncSession,
     device: DeviceCreate,
     user_id: int,
-) -> Device | None:
+) -> tuple[Device, str] | None:
+    """Создать устройство и сразу выпустить токен. Plaintext отдаётся в роуте один раз."""
     if not await _user_owns_car(db, device.car_id, user_id):
         return None
 
-    db_device = Device(**device.model_dump())
+    plaintext, hashed = generate_device_token()
+    db_device = Device(**device.model_dump(), token_hash=hashed)
     db.add(db_device)
     await db.commit()
     await db.refresh(db_device)
-    return db_device
+    return db_device, plaintext
 
 
 async def get_devices(
@@ -71,6 +74,15 @@ async def get_devices_by_car(
     return result.scalars().all()
 
 
+async def get_device_by_token_hash(
+    db: AsyncSession,
+    token_hash: str,
+) -> Device | None:
+    """Найти устройство по хешу API-токена. Используется при аутентификации агента."""
+    stmt = select(Device).where(Device.token_hash == token_hash)
+    return (await db.execute(stmt)).scalar_one_or_none()
+
+
 async def update_device(
     db: AsyncSession,
     device_id: int,
@@ -88,6 +100,22 @@ async def update_device(
     await db.commit()
     await db.refresh(db_device)
     return db_device
+
+
+async def regenerate_device_token(
+    db: AsyncSession,
+    device_id: int,
+    user_id: int,
+) -> str | None:
+    """Выпустить новый токен устройства, аннулируя старый. Возвращает plaintext."""
+    db_device = await get_device_by_id(db, device_id, user_id)
+    if not db_device:
+        return None
+
+    plaintext, hashed = generate_device_token()
+    db_device.token_hash = hashed
+    await db.commit()
+    return plaintext
 
 
 async def delete_device(

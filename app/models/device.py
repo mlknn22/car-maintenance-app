@@ -18,6 +18,7 @@ class Device(Base):
     connected = Column(Boolean, default=True)
     last_seen = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    token_hash = Column(String, nullable=True, unique=True, index=True)
 
     car = relationship("Car", back_populates="devices")
     telemetry_logs = relationship(

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_uploader, get_current_user
 from app.crud.car import get_car_by_id
 from app.crud.device import get_device_by_id
 from app.crud.telemetry_log import (
@@ -12,6 +12,7 @@ from app.crud.telemetry_log import (
     get_telemetry_logs_by_device,
 )
 from app.db.session import get_db
+from app.models.device import Device
 from app.models.telemetry_log import TelemetryLog
 from app.models.user import User
 from app.schemas.telemetry_log import TelemetryLogCreate, TelemetryLogResponse
@@ -29,14 +30,23 @@ router = APIRouter(prefix="/telemetry-logs", tags=["Telemetry Logs"])
 async def create_log(
     log: TelemetryLogCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    principal: User | Device = Depends(get_current_uploader),
 ):
-    device = await get_device_by_id(db, log.device_id, user_id=current_user.id)
-    if not device:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Device with id {log.device_id} not found",
-        )
+    if isinstance(principal, Device):
+        # Агент аутентифицирован device-токеном: он может писать только в своё устройство.
+        if principal.id != log.device_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Device with id {log.device_id} not found",
+            )
+        device = principal
+    else:
+        device = await get_device_by_id(db, log.device_id, user_id=principal.id)
+        if not device:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Device with id {log.device_id} not found",
+            )
 
     effective_ts = log.timestamp if log.timestamp is not None else datetime.now(timezone.utc)
 
