@@ -36,3 +36,5 @@ theory.txt
 
 # VKR text (kept locally, not versioned in this repo)
 *.docx
+_diploma_text.txt
+_diploma_review.md
