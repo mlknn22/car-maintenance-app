@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
@@ -7,6 +9,8 @@ from app.core.config import settings
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+DEVICE_TOKEN_PREFIX = "cma_dev_"
 
 
 def hash_password(plain_password: str) -> str:
@@ -34,3 +38,18 @@ def decode_token(token: str) -> dict | None:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except JWTError:
         return None
+
+
+def generate_device_token() -> tuple[str, str]:
+    """Сгенерировать API-токен устройства. Возвращает (plaintext, sha256-хеш).
+
+    Plaintext отдаётся пользователю один раз; в БД хранится только хеш.
+    Префикс cma_dev_ позволяет dependency get_current_uploader быстро
+    отделять device-токены от JWT.
+    """
+    plaintext = DEVICE_TOKEN_PREFIX + secrets.token_urlsafe(32)
+    return plaintext, hash_device_token(plaintext)
+
+
+def hash_device_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
